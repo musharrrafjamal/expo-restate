@@ -32,4 +32,5 @@ export default {
   wifi: require("@/assets/icons/wifi.png"),
   location: require("@/assets/icons/location.png"),
   edit: require("@/assets/icons/edit.png"),
+  cross: require("@/assets/icons/cross.png"),
 };

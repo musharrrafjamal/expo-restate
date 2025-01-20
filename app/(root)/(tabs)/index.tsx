@@ -1,60 +1,159 @@
-import { logout } from "@/lib/appwrite";
+import {
+  ActivityIndicator,
+  Button,
+  FlatList,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useEffect } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import icons from "@/constants/icons";
+
+import Search from "@/components/universal/Search";
+import Filters from "@/components/universal/Filters";
+import NoResults from "@/components/universal/NoResults";
+import { Card, FeaturedCard } from "@/components/universal/Cards";
+
+import { useAppwrite } from "@/lib/useAppwrite";
 import { useGlobalContext } from "@/lib/global-provider";
-import { Link, router } from "expo-router";
-import { Button, Image, Text, TouchableOpacity, View } from "react-native";
+import { getLatestProperties, getProperties } from "@/lib/appwrite";
+import seed from "@/lib/seed";
 
-export default function Index() {
-  const { user, loading, isLogged } = useGlobalContext();
+const Home = () => {
+  const { user } = useGlobalContext();
+
+  const params = useLocalSearchParams<{ query?: string; filter?: string }>();
+
+  const { data: latestProperties, loading: latestPropertiesLoading } =
+    useAppwrite({
+      fn: getLatestProperties,
+    });
+
+  const {
+    data: properties,
+    refetch,
+    loading,
+  } = useAppwrite({
+    fn: getProperties,
+    params: {
+      filter: params.filter!,
+      query: params.query!,
+      limit: 20,
+    },
+    // skip: true,
+  });
+
+  useEffect(() => {
+    refetch({
+      filter: params.filter!,
+      query: params.query!,
+      limit: 20,
+    });
+  }, [params.filter, params.query]);
+
+  const handleCardPress = (id: string) => router.push(`/properties/${id}`);
+
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <View>
-        <Link href={`/sign-in`} className="text-primary-1">
-          Sign In
-        </Link>
-        <Link href={`/explore`}>Explore</Link>
-        <Link href={`/profile`}>Profile</Link>
-        <Link
-          href={{
-            pathname: "/properties/[id]",
-            params: { id: "1" },
-          }}
-        >
-          Property 1
-        </Link>
-      </View>
-      <TouchableOpacity
-        onPress={() => {
-          logout();
-          router.push("/sign-in");
-        }}
-        className="bg-red-500 p-2 rounded-md my-4 w-1/2 mx-auto"
-      >
-        <Text className="text-white text-center">Logout</Text>
-      </TouchableOpacity>
+    <SafeAreaView className="h-full bg-white">
+      {/* <Button title="seed" onPress={seed} /> */}
+      <FlatList
+        data={properties}
+        numColumns={2}
+        renderItem={({ item }) => (
+          <Card item={item} onPress={() => handleCardPress(item.$id)} />
+        )}
+        keyExtractor={(item) => item.$id}
+        contentContainerClassName="pb-32"
+        columnWrapperClassName="flex gap-5 px-5"
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" className="text-primary-1 mt-5" />
+          ) : (
+            <NoResults />
+          )
+        }
+        ListHeaderComponent={() => (
+          <View className="px-5">
+            <View className="flex flex-row items-center justify-between my-5">
+              <View className="flex flex-row">
+                <Image
+                  source={{ uri: user?.avatar }}
+                  className="w-12 h-12 rounded-full"
+                />
 
-      {loading && <Text>Loading...</Text>}
-      {!loading && !isLogged && <Text>Not logged in</Text>}
-      {!loading && isLogged && (
-        <View>
-          <Text>{JSON.stringify(user?.name)}</Text>
-          <Text>{JSON.stringify(user?.email)}</Text>
-          <Text>{JSON.stringify(user?.emailVerification)}</Text>
-          <Text>{JSON.stringify(user?.phone)}</Text>
-          <Text>{JSON.stringify(user?.phoneVerification)}</Text>
-          <Text>{JSON.stringify(user?.$createdAt)}</Text>
-          <Text>{JSON.stringify(user?.$updatedAt)}</Text>
-          <Image
-            source={{ uri: user?.avatar }}
-            className="w-10 h-10 rounded-full"
-          />
-        </View>
-      )}
-    </View>
+                <View className="flex flex-col items-start ml-2 justify-center">
+                  <Text className="text-xs font-Rubik_Regular text-black">
+                    Good Morning
+                  </Text>
+                  <Text className="text-base font-Rubik_Medium text-black-300">
+                    {user?.name}
+                  </Text>
+                </View>
+              </View>
+              <Image source={icons.bell} className="w-6 h-6" />
+            </View>
+
+            <Search />
+
+            <View className="my-5">
+              <View className="flex flex-row items-center justify-between">
+                <Text className="text-xl font-Rubik_Bold text-black">
+                  Featured
+                </Text>
+                <TouchableOpacity>
+                  <Text className="text-base font-Rubik_Bold text-primary-1">
+                    See all
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {latestPropertiesLoading ? (
+                <ActivityIndicator size="large" className="text-primary-1" />
+              ) : !latestProperties || latestProperties.length === 0 ? (
+                <NoResults />
+              ) : (
+                <FlatList
+                  data={latestProperties}
+                  renderItem={({ item }) => (
+                    <FeaturedCard
+                      item={item}
+                      onPress={() => handleCardPress(item.$id)}
+                    />
+                  )}
+                  keyExtractor={(item) => item.$id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerClassName="flex gap-5 mt-5"
+                />
+              )}
+            </View>
+
+            {/* <Button title="seed" onPress={seed} /> */}
+
+            <View className="mt-5">
+              <View className="flex flex-row items-center justify-between">
+                <Text className="text-xl font-Rubik_Bold text-black">
+                  Our Recommendation
+                </Text>
+                <TouchableOpacity>
+                  <Text className="text-base font-Rubik_Bold text-primary-1">
+                    See all
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Filters />
+            </View>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   );
-}
+};
+
+export default Home;
